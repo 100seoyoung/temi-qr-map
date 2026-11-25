@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<!--
+  새빛관 층별 안내도 웹사이트
+  - 테미 화면의 QR 코드를 휴대폰으로 스캔하면 이 페이지가 열립니다.
+  - 1층 / 2층 / 3층 탭을 누르면 해당 층 지도만 보여줍니다.
+  - HTML(구조) + CSS(디자인) + JavaScript(동작)를 이 파일 하나에 모두 넣었습니다.
+-->
+<html lang="ko">
+<head>
+  <!-- 한글이 깨지지 않도록 글자 인코딩을 UTF-8로 지정 -->
+  <meta charset="UTF-8">
+
+  <!--
+    휴대폰 화면에 맞추는 설정 (아주 중요!)
+    - width=device-width : 페이지 너비를 휴대폰 화면 너비에 맞춤
+    - initial-scale=1    : 처음 열었을 때 확대/축소 없이 100%로 보여줌
+    - maximum-scale=5    : 두 손가락으로 최대 5배까지 확대 가능
+    ※ "user-scalable=no"를 넣으면 확대가 막히므로 일부러 넣지 않았습니다.
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+
+  <!-- 브라우저 탭에 표시되는 제목 -->
+  <title>새빛관 층별 안내도</title>
+
+  <style>
+    /* ===================================================
+       CSS: 페이지의 디자인(색, 크기, 배치)을 정하는 부분
+       =================================================== */
+
+    /* 색상을 변수로 모아두면 나중에 한 곳만 바꿔도 전체 색이 바뀝니다 */
+    :root {
+      --main-color: #8b1e3f;      /* 대표 색 (탭 선택 색, 제목 줄 색) */
+      --bg-color: #f4f4f6;        /* 페이지 배경 색 */
+      --card-color: #ffffff;      /* 지도 카드 배경 색 */
+      --text-color: #222222;      /* 기본 글자 색 */
+      --sub-text-color: #666666;  /* 보조 글자 색 */
+    }
+
+    /* 모든 요소의 크기 계산을 "테두리 포함"으로 통일 (레이아웃이 덜 깨짐) */
+    * {
+      box-sizing: border-box;
+    }
+
+    /* 페이지 전체 기본 설정 */
+    body {
+      margin: 0;  /* 브라우저가 기본으로 넣는 바깥 여백 제거 */
+      background: var(--bg-color);
+      color: var(--text-color);
+      /* 휴대폰 기본 글꼴 사용 (아이폰/안드로이드 모두 자연스럽게 보임) */
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+                   "Malgun Gothic", "Noto Sans KR", sans-serif;
+    }
+
+    /* ---------- 위쪽 제목 영역 ---------- */
+    header {
+      background: var(--main-color);
+      color: #ffffff;
+      padding: 20px 16px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    header p {
+      margin: 6px 0 0;
+      font-size: 13px;
+      opacity: 0.85;  /* 글자를 살짝 투명하게 해서 제목보다 덜 눈에 띄게 */
+    }
+
+    /* ---------- 1층 / 2층 / 3층 탭 ---------- */
+    .tabs {
+      display: flex;          /* 버튼들을 가로로 나란히 배치 */
+      gap: 8px;               /* 버튼 사이 간격 */
+      padding: 12px 16px;
+      background: var(--card-color);
+      border-bottom: 1px solid #dddddd;
+    }
+
+    .tab-button {
+      flex: 1;                /* 세 버튼이 같은 너비로 화면을 나눠 가짐 */
+      padding: 12px 0;        /* 손가락으로 누르기 쉽게 넉넉한 높이 */
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--main-color);
+      background: #ffffff;
+      border: 2px solid var(--main-color);
+      border-radius: 10px;    /* 모서리를 둥글게 */
+      cursor: pointer;
+      font-family: inherit;   /* 버튼도 body와 같은 글꼴 사용 */
+    }
+
+    /* 현재 선택된 탭은 색을 채워서 눈에 띄게 */
+    .tab-button.active {
+      color: #ffffff;
+      background: var(--main-color);
+    }
+
+    /* ---------- 지도 영역 ---------- */
+    main {
+      padding: 16px;
+    }
+
+    /* 각 층 지도를 감싸는 카드 */
+    .floor {
+      display: none;          /* 기본은 숨김 */
+      background: var(--card-color);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    /* active 클래스가 붙은 층만 보이게 */
+    .floor.active {
+      display: block;
+    }
+
+    .floor h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    /* 지도 이미지를 화면 너비에 딱 맞추기 */
+    .floor img {
+      display: block;
+      width: 100%;            /* 카드 너비에 꽉 차게 */
+      height: auto;           /* 가로세로 비율은 그대로 유지 */
+      border-radius: 8px;
+    }
+
+    /* 이미지 파일을 못 찾았을 때 보여줄 안내 문구 (평소엔 숨김) */
+    .img-error {
+      display: none;
+      padding: 40px 12px;
+      text-align: center;
+      color: var(--sub-text-color);
+      background: #fafafa;
+      border: 1px dashed #cccccc;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    /* 맨 아래 도움말 */
+    .hint {
+      margin: 14px 0 0;
+      text-align: center;
+      font-size: 13px;
+      color: var(--sub-text-color);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ===================================================
+       HTML: 페이지에 무엇이 들어가는지 정하는 부분
+       =================================================== -->
+
+  <!-- 1) 제목 -->
+  <header>
+    <h1>새빛관 층별 안내도</h1>
+    <p>보고 싶은 층을 눌러주세요</p>
+  </header>
+
+  <!--
+    2) 층 선택 탭
+    - data-floor 값("1f", "2f", "3f")이 아래 지도 영역의 id와 짝을 이룹니다.
+    - 처음에는 1층이 선택된 상태(active)로 시작합니다.
+  -->
+  <nav class="tabs" role="tablist">
+    <button class="tab-button active" data-floor="1f" role="tab" aria-selected="true">1층</button>
+    <button class="tab-button" data-floor="2f" role="tab" aria-selected="false">2층</button>
+    <button class="tab-button" data-floor="3f" role="tab" aria-selected="false">3층</button>
+  </nav>
+
+  <!-- 3) 층별 지도 (active가 붙은 것 하나만 화면에 보임) -->
+  <main>
+    <section class="floor active" id="1f" role="tabpanel">
+      <h2>1층</h2>
+      <img src="images/1f.png" alt="새빛관 1층 지도">
+      <div class="img-error">1층 지도 이미지(images/1f.png)를 찾을 수 없습니다.</div>
+    </section>
+
+    <section class="floor" id="2f" role="tabpanel">
+      <h2>2층</h2>
+      <img src="images/2f.png" alt="새빛관 2층 지도">
+      <div class="img-error">2층 지도 이미지(images/2f.png)를 찾을 수 없습니다.</div>
+    </section>
+
+    <section class="floor" id="3f" role="tabpanel">
+      <h2>3층</h2>
+      <img src="images/3f.png" alt="새빛관 3층 지도">
+      <div class="img-error">3층 지도 이미지(images/3f.png)를 찾을 수 없습니다.</div>
+    </section>
+
+    <p class="hint">두 손가락으로 벌리면 지도를 확대할 수 있어요</p>
+  </main>
+
+  <script>
+    // ===================================================
+    // JavaScript: 탭을 눌렀을 때 동작을 정하는 부분
+    // ===================================================
+
+    // 페이지에 있는 탭 버튼 3개와 층 지도 3개를 모두 찾아서 변수에 담아둡니다.
+    const tabButtons = document.querySelectorAll(".tab-button");
+    const floors = document.querySelectorAll(".floor");
+
+    // 특정 층을 보여주는 함수
+    // 예) showFloor("2f") → 2층 탭을 선택 상태로, 2층 지도만 보이게
+    function showFloor(floorId) {
+      // (1) 모든 탭 버튼을 확인하면서
+      tabButtons.forEach(function (button) {
+        // 이 버튼이 고른 층의 버튼인지 확인 (true 또는 false)
+        const isSelected = button.dataset.floor === floorId;
+        // true면 active 클래스를 붙이고, false면 뗍니다.
+        button.classList.toggle("active", isSelected);
+        // 화면 낭독기(시각장애인용)에도 선택 상태를 알려줍니다.
+        button.setAttribute("aria-selected", isSelected);
+      });
+
+      // (2) 모든 층 지도를 확인하면서, 고른 층만 active(보이기)로 만듭니다.
+      floors.forEach(function (floor) {
+        floor.classList.toggle("active", floor.id === floorId);
+      });
+    }
+
+    // 각 탭 버튼에 "클릭하면 showFloor 실행" 기능을 연결합니다.
+    tabButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        showFloor(button.dataset.floor);
+      });
+    });
+
+    // 지도 이미지 파일을 못 불러오면(파일 이름 오타, 파일 없음 등)
+    // 깨진 이미지 아이콘 대신 안내 문구를 보여줍니다.
+    document.querySelectorAll(".floor img").forEach(function (img) {
+      img.addEventListener("error", function () {
+        img.style.display = "none";                       // 깨진 이미지 숨기기
+        img.nextElementSibling.style.display = "block";   // 바로 아래 안내 문구 보이기
+      });
+    });
+  </script>
+</body>
+</html>
